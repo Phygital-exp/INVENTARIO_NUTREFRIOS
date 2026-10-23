@@ -1,0 +1,25 @@
+{
+  "name": "nutrefrios-inventario-proxy",
+  "version": "1.0.0",
+  "description": "Proxy para toma de inventario por marca Nutrefríos",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "proxy",
+    "nutrefrios",
+    "inventario"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  }
+}
