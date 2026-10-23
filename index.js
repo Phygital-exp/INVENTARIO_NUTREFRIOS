@@ -297,6 +297,24 @@ async function documentosDeVisita(idRegistro) {
     return docs.filter(d => mismoValor(d.ID_REGISTRO, idRegistro) && d.EAN !== undefined && d.EAN !== null);
 }
 
+// Un punto solo se inventaría una vez al día por persona: si HOY ya finalizó productos en ese mismo punto
+// en otra visita (otro ID_REGISTRO), el nuevo ingreso no puede registrar inventario
+async function exigirSinInventarioHoy(ingreso, idRegistro) {
+    if (textoONulo(ingreso.CEDULA) === null || textoONulo(ingreso.SAP) === null) return;
+    const hoy = fechaYHoraLocal().FECHA_REGISTRO.slice(0, 10);
+    const docs = await consultarColeccion(COLECCIONES.registros, { CEDULA: ingreso.CEDULA });
+    const yaRealizado = docs.some(d =>
+        mismoValor(d.SAP, ingreso.SAP)
+        && String(d.FECHA_REGISTRO || "").slice(0, 10) === hoy
+        && !mismoValor(d.ID_REGISTRO, idRegistro)
+        && estaFinalizado(d));
+    if (yaRealizado) {
+        throw new ErrorApi(409,
+            `Ya realizaste hoy el inventario del punto ${nombrePdvDe(ingreso) || ingreso.SAP}. ` +
+            "No puedes volver a hacer inventario en este punto. Si vas a otro punto, selecciónalo en el chatbot.");
+    }
+}
+
 // EAN -> documento más reciente (por si quedara algún duplicado)
 function documentosPorEan(docs) {
     const mapa = new Map();
@@ -419,6 +437,7 @@ app.post("/api/registros", manejar(async (req, res) => {
     }
 
     const idRegistro = idRegistroDe(ingreso);
+    await exigirSinInventarioHoy(ingreso, idRegistro);
     const docs = await documentosDeVisita(idRegistro);
     console.log(`📍 ${cedula} en punto ${nombrePdvDe(ingreso)} (ID_REGISTRO ${idRegistro}) · ${docs.length} productos guardados`);
     res.json({ registro: await construirVista(ingreso, docs) });
@@ -467,6 +486,7 @@ app.put("/api/registros/:id/producto", manejar(async (req, res) => {
         const ingreso = await obtenerIngresoOError(id);
         exigirEnPunto(ingreso);
         const idRegistro = idRegistroDe(ingreso);
+        await exigirSinInventarioHoy(ingreso, idRegistro);
         const canal = await canalDe(ingreso);
 
         const producto = (await catalogoDelCanal(canal)).find(p => p.PRODUCTO_ID === String(productoId));
@@ -542,6 +562,7 @@ app.post("/api/registros/:id/marcas/:marca/finalizar", manejar(async (req, res) 
         const ingreso = await obtenerIngresoOError(id);
         exigirEnPunto(ingreso);
         const idRegistro = idRegistroDe(ingreso);
+        await exigirSinInventarioHoy(ingreso, idRegistro);
         const catalogo = await catalogoDeVisita(ingreso);
 
         const catalogoMarca = catalogo.filter(p => p.MARCA === nombreMarca);
