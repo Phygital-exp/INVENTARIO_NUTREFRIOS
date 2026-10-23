@@ -31,7 +31,7 @@ const COLECCIONES = {
 };
 
 const ZONA_HORARIA = "America/Bogota";
-const CANTIDAD_MAXIMA = 999999;
+const CANTIDAD_MAXIMA = 999;
 
 // Canal comodín: un producto o punto con este canal aplica para todos
 const CANAL_TODOS = "TODOS";
@@ -478,7 +478,7 @@ app.put("/api/registros/:id/producto", manejar(async (req, res) => {
 
     const textoCantidad = String(cantidad ?? "").trim();
     if (!/^\d+$/.test(textoCantidad) || Number(textoCantidad) > CANTIDAD_MAXIMA) {
-        throw new ErrorApi(400, "La cantidad debe ser un número entero igual o mayor a 0.");
+        throw new ErrorApi(400, `La cantidad debe ser un número entero entre 0 y ${CANTIDAD_MAXIMA}.`);
     }
     const valor = Number(textoCantidad);
 
@@ -543,7 +543,7 @@ function cantidadesDeMarca(lista, catalogoMarca) {
         if (!producto) throw new ErrorApi(400, "Uno de los productos enviados no pertenece a esta marca.");
         const texto = String(item.cantidad ?? "").trim();
         if (!/^\d+$/.test(texto) || Number(texto) > CANTIDAD_MAXIMA) {
-            throw new ErrorApi(400, `La cantidad de ${producto.DESC} debe ser un número entero igual o mayor a 0.`);
+            throw new ErrorApi(400, `La cantidad de ${producto.DESC} debe ser un número entero entre 0 y ${CANTIDAD_MAXIMA}.`);
         }
         resultado.set(producto.EAN, Number(texto));
     }
