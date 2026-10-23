@@ -32,6 +32,7 @@ const COLECCIONES = {
 
 const ZONA_HORARIA = "America/Bogota";
 const CANTIDAD_MAXIMA = 999;
+const DECIMALES_MAXIMOS = 2;
 
 // Canal comodín: un producto o punto con este canal aplica para todos
 const CANAL_TODOS = "TODOS";
@@ -326,8 +327,24 @@ function documentosPorEan(docs) {
     return mapa;
 }
 
-const tieneCantidad = doc => doc && Number.isInteger(Number(doc.CANTIDAD)) && Number(doc.CANTIDAD) >= 0
+const tieneCantidad = doc => doc && Number.isFinite(Number(doc.CANTIDAD)) && Number(doc.CANTIDAD) >= 0
     && doc.CANTIDAD !== null && doc.CANTIDAD !== "";
+
+// Cantidad: número entre 0 y CANTIDAD_MAXIMA, con punto como separador y hasta DECIMALES_MAXIMOS decimales.
+// Devuelve el número o lanza el error con el mensaje para la persona.
+const FORMATO_CANTIDAD = new RegExp(`^\\d+(\\.\\d{1,${DECIMALES_MAXIMOS}})?$`);
+function leerCantidad(valor, desc) {
+    const texto = String(valor ?? "").trim();
+    const de = desc ? ` de ${desc}` : "";
+    if (texto.includes(",")) {
+        throw new ErrorApi(400, `Usa punto (.) para los decimales de la cantidad${de}, no coma. Ej: 0.5`);
+    }
+    if (!FORMATO_CANTIDAD.test(texto) || Number(texto) > CANTIDAD_MAXIMA) {
+        throw new ErrorApi(400,
+            `La cantidad${de} debe ser un número entre 0 y ${CANTIDAD_MAXIMA}, con máximo ${DECIMALES_MAXIMOS} decimales.`);
+    }
+    return Number(texto);
+}
 const estaFinalizado = doc => doc && normalizarEstado(doc.ESTADO) === PRODUCTO_FINALIZADO;
 
 const marcaCompleta = (productos, porEan) => productos.length > 0 && productos.every(p => estaFinalizado(porEan.get(p.EAN)));
@@ -476,11 +493,7 @@ app.put("/api/registros/:id/producto", manejar(async (req, res) => {
     const id = req.params.id;
     const { productoId, cantidad } = req.body || {};
 
-    const textoCantidad = String(cantidad ?? "").trim();
-    if (!/^\d+$/.test(textoCantidad) || Number(textoCantidad) > CANTIDAD_MAXIMA) {
-        throw new ErrorApi(400, `La cantidad debe ser un número entero entre 0 y ${CANTIDAD_MAXIMA}.`);
-    }
-    const valor = Number(textoCantidad);
+    const valor = leerCantidad(cantidad);
 
     const registro = await conBloqueo(`visita:${id}`, async () => {
         const ingreso = await obtenerIngresoOError(id);
@@ -541,11 +554,7 @@ function cantidadesDeMarca(lista, catalogoMarca) {
     for (const item of lista) {
         const producto = porId.get(String(item && item.productoId));
         if (!producto) throw new ErrorApi(400, "Uno de los productos enviados no pertenece a esta marca.");
-        const texto = String(item.cantidad ?? "").trim();
-        if (!/^\d+$/.test(texto) || Number(texto) > CANTIDAD_MAXIMA) {
-            throw new ErrorApi(400, `La cantidad de ${producto.DESC} debe ser un número entero entre 0 y ${CANTIDAD_MAXIMA}.`);
-        }
-        resultado.set(producto.EAN, Number(texto));
+        resultado.set(producto.EAN, leerCantidad(item.cantidad, producto.DESC));
     }
     return resultado;
 }
