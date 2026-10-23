@@ -271,10 +271,18 @@ async function catalogoDeVisita(ingreso) {
 const nombrePdvDe = ingreso => ingreso.NOMBRE_PDV ?? ingreso.PDV ?? null;
 const ciudadPdvDe = ingreso => ingreso.CIUDAD_PDV ?? ingreso.CIUDAD ?? null;
 
+// "+573187273226" -> "3187273226": quita el indicativo de Colombia solo si queda un número de 10 dígitos
+function telefonoSinIndicativo(valor) {
+    const texto = textoONulo(valor);
+    if (texto === null) return null;
+    const digitos = texto.replace(/\D/g, "");
+    return digitos.length === 12 && digitos.startsWith("57") ? digitos.slice(2) : texto;
+}
+
 // Datos de la persona y del punto que se guardan en cada producto inventariado (salen del ingreso)
 function datosPersonaYPunto(ingreso) {
     return {
-        TELEFONO: ingreso.id ?? ingreso.TELEFONO ?? null,
+        TELEFONO: telefonoSinIndicativo(ingreso.id ?? ingreso.TELEFONO),
         CEDULA: ingreso.CEDULA ?? null,
         SAP: ingreso.SAP ?? null,
         PDV: nombrePdvDe(ingreso),
