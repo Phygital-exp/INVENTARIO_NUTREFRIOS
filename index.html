@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e669e">
+    <title>Inventario Nutrefríos</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="encabezado">
+    <div class="encabezado__contenido">
+        <div class="encabezado__titulo">
+            <img class="encabezado__logo" src="logo.png" alt="Nutrefríos" width="342" height="172">
+            <h1>Inventario</h1>
+        </div>
+        <div id="sesion" class="sesion oculto">
+            <div class="sesion__datos">
+                <p id="sesion-nombre" class="sesion__nombre"></p>
+                <p id="sesion-pdv" class="sesion__pdv"></p>
+            </div>
+            <button id="btn-salir" class="btn btn--texto" type="button">Salir</button>
+        </div>
+    </div>
+</header>
+
+<main class="app">
+    <!-- Indicador de pasos -->
+    <ol class="pasos" aria-label="Pasos">
+        <li class="pasos__item" data-paso="1"><span class="pasos__num">1</span><span class="pasos__txt">Identificación</span></li>
+        <li class="pasos__item" data-paso="2"><span class="pasos__num">2</span><span class="pasos__txt">Marca</span></li>
+        <li class="pasos__item" data-paso="3"><span class="pasos__num">3</span><span class="pasos__txt">Cantidades</span></li>
+    </ol>
+
+    <!-- ===== PASO 1: IDENTIFICACIÓN ===== -->
+    <section id="paso-1" class="paso" aria-labelledby="titulo-paso-1">
+        <div class="tarjeta tarjeta--estrecha">
+            <h2 id="titulo-paso-1">¡Hola! Identifícate para empezar</h2>
+            <p class="texto-suave">Escribe tu número de cédula, solo números.</p>
+
+            <form id="form-cedula" class="form-cedula" novalidate>
+                <label for="cedula" class="etiqueta">Número de cédula</label>
+                <input id="cedula" class="campo" type="text" inputmode="numeric" pattern="[0-9]*"
+                       autocomplete="off" maxlength="15" placeholder="Ej: 1012345678" required>
+                <button id="btn-buscar" class="btn btn--primario btn--bloque" type="submit">Continuar</button>
+            </form>
+
+            <div id="mensaje-paso-1" aria-live="polite"></div>
+
+            <div id="confirmacion" class="confirmacion oculto" aria-live="polite">
+                <p class="confirmacion__pregunta">¿Eres <strong id="conf-nombre"></strong><span id="conf-ciudad-texto"> de <strong id="conf-ciudad"></strong></span>?</p>
+                <div class="confirmacion__botones">
+                    <button id="btn-si" class="btn btn--exito btn--grande" type="button">Sí, soy yo</button>
+                    <button id="btn-no" class="btn btn--secundario btn--grande" type="button">No, no soy yo</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PASO 2: MARCA ===== -->
+    <section id="paso-2" class="paso oculto" aria-labelledby="titulo-paso-2">
+        <div class="tarjeta tarjeta--estrecha">
+            <h2 id="titulo-paso-2">Elige la marca a inventariar</h2>
+            <div id="contenido-paso-2"></div>
+        </div>
+    </section>
+
+    <!-- ===== PASO 3: CANTIDADES ===== -->
+    <section id="paso-3" class="paso oculto" aria-labelledby="titulo-marca">
+        <div class="marca-cabecera">
+            <button id="btn-cambiar-marca" class="btn btn--texto" type="button">← Cambiar marca</button>
+            <h2 id="titulo-marca" class="marca-cabecera__titulo"></h2>
+        </div>
+
+        <div id="aviso-finalizada" class="aviso aviso--gris oculto" role="status">
+            ✓ Esta marca ya fue finalizada. Las cantidades no se pueden editar.
+        </div>
+
+        <div class="herramientas">
+            <label for="buscador" class="sr-only">Buscar producto por nombre o código EAN</label>
+            <input id="buscador" class="campo campo--buscar" type="search" autocomplete="off"
+                   placeholder="🔍 Buscar por nombre o EAN">
+            <div class="contador">
+                <p id="contador-texto" class="contador__texto" aria-live="polite"></p>
+                <div class="barra" aria-hidden="true"><div id="contador-barra" class="barra__relleno"></div></div>
+            </div>
+        </div>
+
+        <div id="contenido-paso-3">
+            <div class="lista-encabezado" aria-hidden="true">
+                <span>Producto</span><span>Cantidad</span><span>Acción</span>
+            </div>
+            <div id="lista-productos" class="lista" role="list"></div>
+        </div>
+
+        <div id="barra-finalizar" class="barra-finalizar">
+            <button id="btn-finalizar" class="btn btn--primario btn--bloque" type="button">Finalizar marca</button>
+        </div>
+    </section>
+</main>
+
+<!-- Modal reutilizable -->
+<div id="modal" class="modal-fondo oculto">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+        <h3 id="modal-titulo" class="modal__titulo"></h3>
+        <div id="modal-cuerpo" class="modal__cuerpo"></div>
+        <div id="modal-botones" class="modal__botones"></div>
+    </div>
+</div>
+
+<!-- Avisos (toasts) -->
+<div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
