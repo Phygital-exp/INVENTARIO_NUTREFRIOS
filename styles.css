@@ -80,7 +80,7 @@ h1, h2, h3 { line-height: 1.25; }
     display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap;
 }
 .encabezado__titulo { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.encabezado__logo { display: block; height: 40px; width: auto; border-radius: 8px; flex: none; }
+.encabezado__logo { font-size: 1.3rem; }
 .encabezado h1 { font-size: 1.05rem; font-weight: 700; color: var(--primario); white-space: nowrap; }
 
 .sesion { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1 1 200px; justify-content: flex-end; }
@@ -335,7 +335,6 @@ h1, h2, h3 { line-height: 1.25; }
 /* ========== CELULARES MUY ANGOSTOS (≤ 360px) ========== */
 @media (max-width: 360px) {
     .encabezado h1 { font-size: .95rem; }
-    .encabezado__logo { height: 34px; }
     .pasos__txt { display: none; }
     .tarjeta { padding: 18px 14px; }
     .fila { padding: 12px; }
@@ -345,7 +344,6 @@ h1, h2, h3 { line-height: 1.25; }
 /* ========== TABLET Y COMPUTADOR (≥ 700px) ========== */
 @media (min-width: 700px) {
     .encabezado h1 { font-size: 1.15rem; }
-    .encabezado__logo { height: 48px; }
     .pasos__item { justify-content: flex-start; padding: 8px 12px; font-size: .85rem; }
     .tarjeta { padding: 28px 24px; }
     .confirmacion__botones { grid-template-columns: 1fr 1fr; }
