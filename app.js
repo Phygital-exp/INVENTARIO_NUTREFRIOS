@@ -5,7 +5,9 @@
     const $ = id => document.getElementById(id);
     const CLAVE_SESION = "inventario_nutrefrios_sesion";
     const MAX_FALTANTES_MODAL = 4;
-    const MAX_DIGITOS = 6;
+    // Cantidad: hasta 999 con máximo 2 decimales y punto como separador (ej. 0.25)
+    const MAX_ENTEROS = 3;
+    const MAX_DECIMALES = 2;
 
     // ========== ESTADO ==========
     const estado = {
@@ -114,7 +116,7 @@
         const mapa = new Map();
         const marca = marcaEnRegistro(nombre);
         for (const p of (marca && marca.PRODUCTOS) || []) {
-            if (Number.isInteger(p.CANTIDAD) && p.CANTIDAD >= 0) mapa.set(String(p.PRODUCTO_ID), p.CANTIDAD);
+            if (Number.isFinite(p.CANTIDAD) && p.CANTIDAD >= 0) mapa.set(String(p.PRODUCTO_ID), p.CANTIDAD);
         }
         return mapa;
     }
@@ -466,12 +468,12 @@
             : tieneValor ? String(guardadas.get(id)) : "";
 
         const input = crear("input", {
-            id: `cant-${id}`, class: "campo cantidad", type: "text", inputMode: "numeric",
-            autocomplete: "off", maxLength: MAX_DIGITOS, placeholder: "Cantidad", value: valor,
+            // inputmode "decimal": teclado de números con separador, sin letras
+            id: `cant-${id}`, class: "campo cantidad", type: "text", inputMode: "decimal",
+            autocomplete: "off", maxLength: MAX_ENTEROS + 1 + MAX_DECIMALES, placeholder: "Cantidad", value: valor,
             disabled: tipo === "bloqueada" || tipo === "guardado" || guardando,
             "data-id": id,
         });
-        input.setAttribute("pattern", "[0-9]*");
 
         let acciones = [];
         if (tipo === "pendiente" || tipo === "editando") {
@@ -520,14 +522,30 @@
         return nueva;
     }
 
-    // Solo enteros >= 0: bloquea cualquier carácter que no sea dígito (e, -, +, ., , etc.)
+    // Cédula: bloquea cualquier carácter que no sea dígito (e, -, +, ., , etc.)
     function bloquearNoDigitos(e) {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         if (e.key && e.key.length === 1 && !/\d/.test(e.key)) e.preventDefault();
     }
 
+    // Deja solo dígitos y un punto: máximo MAX_ENTEROS enteros y MAX_DECIMALES decimales.
+    // Conserva el punto final ("5.") para que se pueda seguir escribiendo; ".5" pasa a "0.5".
     function limpiarCantidad(texto) {
-        return String(texto).replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, MAX_DIGITOS);
+        const [enteros, ...resto] = String(texto).replace(/[^\d.]/g, "").split(".");
+        const parteEntera = enteros.replace(/^0+(?=\d)/, "").slice(0, MAX_ENTEROS);
+        if (resto.length === 0) return parteEntera;
+        return `${parteEntera || "0"}.${resto.join("").slice(0, MAX_DECIMALES)}`;
+    }
+
+    // Valor final para enviar: "5." -> "5", "" se queda vacío
+    const cantidadParaEnviar = texto => limpiarCantidad(texto).replace(/\.$/, "");
+
+    // Avisa que el separador es punto (sin repetir el aviso en cada tecla)
+    let ultimoAvisoComa = 0;
+    function avisarComa() {
+        if (Date.now() - ultimoAvisoComa < 3000) return;
+        ultimoAvisoComa = Date.now();
+        toast("Usa punto (.) para los decimales, no coma. Ej: 0.5", "aviso", 3500);
     }
 
     const lista = $("lista-productos");
@@ -539,13 +557,21 @@
             enviarCantidad(e.target.dataset.id);
             return;
         }
-        bloquearNoDigitos(e);
+        if (e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1) return;
+        if (e.key === ",") {
+            e.preventDefault();
+            avisarComa();
+        } else if (!/[\d.]/.test(e.key) || (e.key === "." && e.target.value.includes("."))) {
+            e.preventDefault();
+        }
     });
 
-    // Cubre escritura, pegado y autocompletado del teclado del celular
+    // Cubre escritura, pegado y autocompletado del teclado del celular (en Android el keydown no
+    // siempre trae la tecla, así que aquí también se quitan comas y letras)
     lista.addEventListener("input", e => {
         if (!e.target.classList.contains("cantidad")) return;
-        const limpio = limpiarCantidad(e.target.value);
+        if (e.target.value.includes(",")) avisarComa();
+        const limpio = limpiarCantidad(e.target.value.replace(/,/g, ""));
         if (limpio !== e.target.value) e.target.value = limpio;
         e.target.classList.remove("invalido");
         estado.borradores.set(e.target.dataset.id, limpio);
@@ -579,7 +605,7 @@
     async function enviarCantidad(id) {
         if (estado.guardando.has(id) || marcaFinalizada(estado.marcaActual)) return;
         const producto = estado.productos.find(p => p.PRODUCTO_ID === id);
-        const valor = limpiarCantidad(estado.borradores.get(id) || "");
+        const valor = cantidadParaEnviar(estado.borradores.get(id) || "");
 
         if (valor === "") {
             const input = $(`cant-${id}`);
@@ -649,7 +675,7 @@
         const guardadas = cantidadesGuardadas(estado.marcaActual);
         const sinEnviar = [];
         for (const p of estado.productos) {
-            const borrador = limpiarCantidad(estado.borradores.get(p.PRODUCTO_ID) || "");
+            const borrador = cantidadParaEnviar(estado.borradores.get(p.PRODUCTO_ID) || "");
             if (borrador === "") continue;
             if (guardadas.get(p.PRODUCTO_ID) === Number(borrador)) continue;
             sinEnviar.push({ productoId: p.PRODUCTO_ID, cantidad: Number(borrador) });
