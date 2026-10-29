@@ -178,6 +178,8 @@ async function obtenerProductos() {
             DESC: String(p.DESCRIPCION_DEL_PRODUCTO || "").trim(),
             EAN: textoONulo(p.EAN_13) || "",
             CANAL: normalizarCanal(p.CANAL),
+            PRECIO_SUG: Number.isFinite(Number(p.PRECIO_SUG)) && textoONulo(p.PRECIO_SUG) !== null
+                ? Number(p.PRECIO_SUG) : null,
         }))
         .filter(p => p.EAN)
         .sort((a, b) => a.DESC.localeCompare(b.DESC, "es"));
@@ -280,19 +282,32 @@ function telefonoSinIndicativo(valor) {
     return digitos.length === 12 && digitos.startsWith("57") ? digitos.slice(2) : texto;
 }
 
-// Datos de la persona y del punto que se guardan en cada producto inventariado (salen del ingreso)
-function datosPersonaYPunto(ingreso) {
+// Datos de la persona y del punto que se guardan en cada producto inventariado (salen del ingreso;
+// si falta el nombre o la ciudad se completan con las bases de usuarios y puntos)
+async function datosPersonaYPunto(ingreso) {
+    let nombre = textoONulo(ingreso.NOMBRE);
+    if (nombre === null && textoONulo(ingreso.CEDULA) !== null) {
+        const usuario = await buscarUsuario(String(ingreso.CEDULA).trim());
+        nombre = textoONulo(usuario && usuario.NOMBRE);
+    }
+    let ciudad = textoONulo(ciudadPdvDe(ingreso));
+    if (ciudad === null) {
+        const punto = await buscarPunto(ingreso.SAP);
+        ciudad = textoONulo(punto && punto.CIUDAD);
+    }
     return {
         TELEFONO: telefonoSinIndicativo(ingreso.id ?? ingreso.TELEFONO),
         CEDULA: ingreso.CEDULA ?? null,
+        NOMBRE_USUARIO: nombre,
         SAP: ingreso.SAP ?? null,
         PDV: nombrePdvDe(ingreso),
+        CIUDAD_PDV: ciudad,
     };
 }
 
 // ========== INVENTARIO (un documento por producto) ==========
-// registro_inventario_nutrefrios: { EAN, DESC, SAP_PRODUCTO, CANTIDAD, FECHA_REGISTRO, HORA_REGISTRO, ID_REGISTRO,
-//                                   ESTADO, MARCA, TELEFONO, CEDULA, SAP, PDV }
+// registro_inventario_nutrefrios: { EAN, DESC, SAP_PRODUCTO, PRECIO_SUGERIDO, CANTIDAD, FECHA_REGISTRO, HORA_REGISTRO,
+//                                   ID_REGISTRO, ESTADO, MARCA, TELEFONO, CEDULA, NOMBRE_USUARIO, SAP, PDV, CIUDAD_PDV }
 async function documentosDeVisita(idRegistro) {
     const docs = await consultarColeccion(COLECCIONES.registros, { ID_REGISTRO: idRegistro });
     return docs.filter(d => mismoValor(d.ID_REGISTRO, idRegistro) && d.EAN !== undefined && d.EAN !== null);
@@ -524,12 +539,13 @@ app.put("/api/registros/:id/producto", manejar(async (req, res) => {
                 EAN: producto.EAN,
                 DESC: producto.DESC,
                 SAP_PRODUCTO: producto.SAP,
+                PRECIO_SUGERIDO: producto.PRECIO_SUG,
                 CANTIDAD: valor,
                 ...fechaHora,
                 ID_REGISTRO: idRegistro,
                 ESTADO: PRODUCTO_PENDIENTE,
                 MARCA: producto.MARCA,
-                ...datosPersonaYPunto(ingreso),
+                ...(await datosPersonaYPunto(ingreso)),
             };
             const insertId = await crearDocumento(COLECCIONES.registros, nuevo);
             docs = insertId
@@ -593,7 +609,7 @@ app.post("/api/registros/:id/marcas/:marca/finalizar", manejar(async (req, res) 
 
         // Un solo POST por producto: guarda la cantidad (si llegó una nueva) y lo deja FINALIZADO
         const fechaHora = fechaYHoraLocal();
-        const datosVisita = datosPersonaYPunto(ingreso);
+        const datosVisita = await datosPersonaYPunto(ingreso);
         const operaciones = [];
         for (const p of catalogoMarca) {
             const doc = porEan.get(p.EAN);
@@ -604,6 +620,7 @@ app.post("/api/registros/:id/marcas/:marca/finalizar", manejar(async (req, res) 
                     EAN: p.EAN,
                     DESC: p.DESC,
                     SAP_PRODUCTO: p.SAP,
+                    PRECIO_SUGERIDO: p.PRECIO_SUG,
                     CANTIDAD: cantidad,
                     ...fechaHora,
                     ID_REGISTRO: idRegistro,
